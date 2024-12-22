@@ -8,6 +8,25 @@
     </div>
   </div>
   <div class="story px-3 flex gap-3 overflow-auto mt-5">
+    <% if(myStories){ 
+      myStories.forEach(function(story){ %>
+        <a href="/story/<%= story.id %>">
+          <div class="circle flex-shrink-0">
+            <div
+              class="gradient w-[18vw] h-[18vw] bg-sky-100 rounded-full bg-gradient-to-r from-purple-700 to-orange-500 flex items-center justify-center"
+            >
+              <div class="inner w-[92%] h-[92%] rounded-full overflow-hidden">
+                <img
+                  class="w-full h-full object-cover"
+                  src="/images/uploads/<%= story.story%>"
+                  alt=""
+                />
+              </div>
+            </div>
+          </div>
+        </a>
+    <% })
+    } %> 
     <% stories.forEach(function(story){ %>
     <a href="/story/<%= story.id %>">
       <div class="circle flex-shrink-0">

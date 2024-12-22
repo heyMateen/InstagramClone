@@ -10,6 +10,7 @@ const upload = require("./multer");
 const utils = require("../utils/utils");
 const isAuthenticated = require("../middlewares/isAuthenticated");
 const isGuest = require("../middlewares/isGuest");
+const deleteStoryAuthorization = require("../middlewares/deleteStoryAuthorization");
 
 // Guest Routes
 router.get("/", isGuest, function (req, res) {
@@ -35,38 +36,49 @@ router.get("/like/:postid", isAuthenticated, async function (req, res) {
 router.get("/feed", isAuthenticated, async function (req, res) {
   let user = await userModel
     .findOne({ username: req.session.passport.user })
-    .populate("posts");
+    .populate("posts")
+    .populate("stories");
   let stories = await storyModel.find().populate("user");
   let filtered = stories.filter((item) => {
-    // return item.user._id.toString() !== user._id.toString();
-    return true;
+    return item.user._id.toString() !== user._id.toString();
   });
+  let myStories = user.stories;
 
   let posts = await postModel.find().populate("user");
-  console.log(posts);
+  console.log(myStories);
   res.render("feed", {
     footer: true,
     user,
     posts,
     stories: filtered,
+    myStories: myStories,
     dater: utils.formatRelativeTime,
   });
 });
 router.get("/story/:id", isAuthenticated, async (req, res) => {
-  const storyId = req.params.id;
-  const user = req.session.user;
+  try {
+    const storyId = req.params.id;
+    const user = req.session.user;
 
-  // Assume `Story` is your model to fetch the story details from the database
-  const story = await storyModel.findById(storyId).populate("user");
-  // .populate("comments.user");
+    // Fetch story and populate user details
+    const story = await storyModel.findById(storyId).populate("user");
 
-  if (!story) {
-    return res.status(404).send("Story not found");
+    if (!story) {
+      return res.status(404).send("Story not found");
+    }
+
+    // Log populated story details
+    console.log("Story object:", story);
+    console.log("Populated user ID:", story.user?._id);
+
+    res.render("story", { footer: true, story: story, user: user });
+  } catch (error) {
+    console.error("Error fetching story:", error);
+    res.status(500).send("Internal Server Error");
   }
-  console.log(user); // Log the user object to verify
-  res.render("story", { footer: true, story: story, user: user });
 });
-router.get("/delete/story/:id", isAuthenticated, async (req, res) => {
+
+router.get("/delete/story/:id", isAuthenticated, deleteStoryAuthorization, async (req, res) => {
   const storyId = req.params.id;
   const userId = req.session.user._id;
 

@@ -37,13 +37,15 @@ Math.floor(days / 7); return `${weeks}w`; } %>
         </h6>
       </div>
       <div class="ml-auto">
+        <% if(String(story.user._id) === String(user._id)) { %>
         <a
           href="/delete/story/<%= story._id %>"
           class="text-red-500 text-xs font-semibold hover:underline"
           onclick="return confirm('Are you sure you want to delete this story?');"
         >
-          <i class="ri-delete-bin-6-fill" style="font-size: 19px;"></i>
+          <i class="ri-delete-bin-6-fill" style="font-size: 19px"></i>
         </a>
+        <% } %>
       </div>
     </div>
 
