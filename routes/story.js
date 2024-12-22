@@ -5,6 +5,7 @@ const storySchema = mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "user"
   },
+  caption : String,
   story: String,
   date: {
     type: Date,

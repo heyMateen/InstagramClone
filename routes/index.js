@@ -8,18 +8,19 @@ const storyModel = require("./story");
 passport.use(new localStrategy(userModel.authenticate()));
 const upload = require("./multer");
 const utils = require("../utils/utils");
+const isAuthenticated = require("../middlewares/isAuthenticated");
+const isGuest = require("../middlewares/isGuest");
 
-
-// GET
-router.get("/", function (req, res) {
+// Guest Routes
+router.get("/", isGuest, function (req, res) {
   res.render("index", { footer: false });
 });
 
-router.get("/login", function (req, res) {
+router.get("/login", isGuest, function (req, res) {
   res.render("login", { footer: false });
 });
 
-router.get("/like/:postid", async function (req, res) {
+router.get("/like/:postid", isAuthenticated, async function (req, res) {
   const post = await postModel.findOne({ _id: req.params.postid });
   const user = await userModel.findOne({ username: req.session.passport.user });
   if (post.like.indexOf(user._id) === -1) {
@@ -31,25 +32,18 @@ router.get("/like/:postid", async function (req, res) {
   res.json(post);
 });
 
-router.get("/feed", isLoggedIn, async function (req, res) {
+router.get("/feed", isAuthenticated, async function (req, res) {
   let user = await userModel
     .findOne({ username: req.session.passport.user })
     .populate("posts");
-
-  let stories = await storyModel.find({ user: { $ne: user._id } })
-  .populate("user");
-
-  var uniq = {};
-  var filtered = stories.filter(item => {
-    if(!uniq[item.user.id]){
-      uniq[item.user.id] = " ";
-      return true;
-    }
-    else return false;
-  })
+  let stories = await storyModel.find().populate("user");
+  let filtered = stories.filter((item) => {
+    // return item.user._id.toString() !== user._id.toString();
+    return true;
+  });
 
   let posts = await postModel.find().populate("user");
-
+  console.log(posts);
   res.render("feed", {
     footer: true,
     user,
@@ -58,8 +52,49 @@ router.get("/feed", isLoggedIn, async function (req, res) {
     dater: utils.formatRelativeTime,
   });
 });
+router.get("/story/:id", isAuthenticated, async (req, res) => {
+  const storyId = req.params.id;
+  const user = req.session.user;
 
-router.get("/profile", isLoggedIn, async function (req, res) {
+  // Assume `Story` is your model to fetch the story details from the database
+  const story = await storyModel.findById(storyId).populate("user");
+  // .populate("comments.user");
+
+  if (!story) {
+    return res.status(404).send("Story not found");
+  }
+  console.log(user); // Log the user object to verify
+  res.render("story", { footer: true, story: story, user: user });
+});
+router.get("/delete/story/:id", isAuthenticated, async (req, res) => {
+  const storyId = req.params.id;
+  const userId = req.session.user._id;
+
+  try {
+    const story = await storyModel.findById(storyId);
+
+    if (!story) {
+      return res.status(404).send("Story not found");
+    }
+
+    // Delete the story
+    await storyModel.findByIdAndDelete(storyId);
+
+    const user = await userModel.findById(userId);
+    const storyIndex = user.stories.indexOf(storyId);
+    if (storyIndex !== -1) {
+      user.stories.splice(storyIndex, 1);
+      await user.save();
+    }
+
+    res.redirect("/feed");
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("An error occurred while deleting the story");
+  }
+});
+
+router.get("/profile", isAuthenticated, async function (req, res) {
   let user = await userModel
     .findOne({ username: req.session.passport.user })
     .populate("posts")
@@ -69,7 +104,7 @@ router.get("/profile", isLoggedIn, async function (req, res) {
   res.render("profile", { footer: true, user });
 });
 
-router.get("/profile/:user", isLoggedIn, async function (req, res) {
+router.get("/profile/:user", isAuthenticated, async function (req, res) {
   let user = await userModel.findOne({ username: req.session.passport.user });
 
   if (user.username === req.params.user) {
@@ -83,7 +118,7 @@ router.get("/profile/:user", isLoggedIn, async function (req, res) {
   res.render("userprofile", { footer: true, userprofile, user });
 });
 
-router.get("/follow/:userid", isLoggedIn, async function (req, res) {
+router.get("/follow/:userid", isAuthenticated, async function (req, res) {
   let followKarneWaala = await userModel.findOne({
     username: req.session.passport.user,
   });
@@ -107,12 +142,12 @@ router.get("/follow/:userid", isLoggedIn, async function (req, res) {
   res.redirect("back");
 });
 
-router.get("/search", isLoggedIn, async function (req, res) {
+router.get("/search", isAuthenticated, async function (req, res) {
   let user = await userModel.findOne({ username: req.session.passport.user });
   res.render("search", { footer: true, user });
 });
 
-router.get("/save/:postid", isLoggedIn, async function (req, res) {
+router.get("/save/:postid", isAuthenticated, async function (req, res) {
   let user = await userModel.findOne({ username: req.session.passport.user });
 
   if (user.saved.indexOf(req.params.postid) === -1) {
@@ -125,7 +160,45 @@ router.get("/save/:postid", isLoggedIn, async function (req, res) {
   res.json(user);
 });
 
-router.get("/search/:user", isLoggedIn, async function (req, res) {
+router.post("/saved-posts", isAuthenticated, async (req, res) => {
+  try {
+    const user = req.user;
+
+    const savedPostIds = user.saved;
+
+    if (!savedPostIds || savedPostIds.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    const savedPosts = await postModel.find({ _id: { $in: savedPostIds } });
+
+    res.status(200).json(savedPosts);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+router.post("/liked-posts", isAuthenticated, async (req, res) => {
+  try {
+    const user = req.user;
+    const userId = user._id;
+
+    const likedPosts = await postModel.find({
+      like: { $in: [userId] },
+    });
+
+    if (likedPosts.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    res.status(200).json(likedPosts);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.get("/search/:user", isAuthenticated, async function (req, res) {
   const searchTerm = `^${req.params.user}`;
   const regex = new RegExp(searchTerm);
 
@@ -134,31 +207,50 @@ router.get("/search/:user", isLoggedIn, async function (req, res) {
   res.json(users);
 });
 
-router.get("/edit", isLoggedIn, async function (req, res) {
+router.get("/edit", isAuthenticated, async function (req, res) {
   const user = await userModel.findOne({ username: req.session.passport.user });
   res.render("edit", { footer: true, user });
 });
 
-router.get("/upload", isLoggedIn, async function (req, res) {
+router.get("/upload", isAuthenticated, async function (req, res) {
   let user = await userModel.findOne({ username: req.session.passport.user });
   res.render("upload", { footer: true, user });
 });
+router.post(
+  "/upload",
+  isAuthenticated,
+  upload.single("image"),
+  async function (req, res) {
+    const user = await userModel.findOne({
+      username: req.session.passport.user,
+    });
+    user.picture = req.file.filename;
+    await user.save();
+    res.redirect("/edit");
+  }
+);
 
-router.post("/update", isLoggedIn, async function (req, res) {
-  const user = await userModel.findOneAndUpdate(
-    { username: req.session.passport.user },
-    { username: req.body.username, name: req.body.name, bio: req.body.bio },
-    { new: true }
-  );
-  req.login(user, function (err) {
-    if (err) throw err;
+router.post(
+  "/update",
+  isAuthenticated,
+  upload.single("picture"),
+  async function (req, res) {
+    const user = await userModel.findOneAndUpdate(
+      { username: req.session.passport.user },
+      { username: req.body.username, name: req.body.name, bio: req.body.bio },
+      { new: true }
+    );
+    if (req.file) {
+      user.picture = req.file.filename;
+      await user.save();
+    }
     res.redirect("/profile");
-  });
-});
+  }
+);
 
 router.post(
   "/post",
-  isLoggedIn,
+  isAuthenticated,
   upload.single("image"),
   async function (req, res) {
     const user = await userModel.findOne({
@@ -176,6 +268,7 @@ router.post(
       let story = await storyModel.create({
         story: req.file.filename,
         user: user._id,
+        caption: req.body.caption,
       });
       user.stories.push(story._id);
     } else {
@@ -187,23 +280,9 @@ router.post(
   }
 );
 
-router.post(
-  "/upload",
-  isLoggedIn,
-  upload.single("image"),
-  async function (req, res) {
-    const user = await userModel.findOne({
-      username: req.session.passport.user,
-    });
-    user.picture = req.file.filename;
-    await user.save();
-    res.redirect("/edit");
-  }
-);
-
 // POST
 
-router.post("/register", function (req, res) {
+router.post("/register", function (req, res, next) {
   const user = new userModel({
     username: req.body.username,
     email: req.body.email,
@@ -226,7 +305,7 @@ router.post(
   function (req, res) {}
 );
 
-router.get("/logout", function (req, res) {
+router.get("/logout", function (req, res, next) {
   req.logout(function (err) {
     if (err) {
       return next(err);
@@ -234,13 +313,5 @@ router.get("/logout", function (req, res) {
     res.redirect("/login");
   });
 });
-
-function isLoggedIn(req, res, next) {
-  if (req.isAuthenticated()) {
-    return next();
-  } else {
-    res.redirect("/login");
-  }
-}
 
 module.exports = router;

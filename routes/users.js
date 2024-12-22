@@ -8,42 +8,42 @@ const userSchema = mongoose.Schema({
   name: String,
   email: String,
   password: String,
-  profileImage: {
+  picture: {
     type: String,
     default: "def.png",
   },
-  // contact: String,
-  // bio: String,
-  // stories: [
-  //   {
-  //     type: mongoose.Schema.Types.ObjectId,
-  //     ref: "story"
-  //   }
-  // ],
-  // saved: [
-  //   {
-  //     type: mongoose.Schema.Types.ObjectId,
-  //     ref: "post"
-  //   }
-  // ],
+  contact: String,
+  bio: String,
+  stories: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "story"
+    }
+  ],
+  saved: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "post"
+    }
+  ], 
   posts: [
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: "post",
     },
   ],
-  //   followers: [
-  //     {
-  //       type: mongoose.Schema.Types.ObjectId,
-  //       ref: "user"
-  //     }
-  //   ],
-  //   following: [
-  //     {
-  //       type: mongoose.Schema.Types.ObjectId,
-  //       ref: "user"
-  //     }
-  //   ]
+    followers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user"
+      }
+    ],
+    following: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user"
+      }
+    ]
 });
 
 userSchema.plugin(plm);
