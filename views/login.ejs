@@ -12,6 +12,13 @@
       <%= successMessages %>
     </div>
     <% } %>
+    <% if (errorMessages && errorMessages[0]) { %>
+    <div
+      class="w-full bg-red-500 text-white py-2 px-4 rounded-md text-center"
+    >
+      <%= errorMessages[0] %>
+    </div>
+    <% } %>
     <form class="w-full" action="/login" method="post">
       <input
         class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900"

@@ -524,20 +524,39 @@ router.post(
       res.redirect("/login");
     } catch (err) {
       console.log("Registration Error:", err); // Log error to debug
-      req.flash("error", "An error occurred during registration.");
+      req.flash(
+        "errorMessages",
+        JSON.stringify(["An error occurred during registration."])
+      );
       res.redirect("/");
     }
   }
 );
 
-router.post(
-  "/login",
-  passport.authenticate("local", {
-    successRedirect: "/feed",
-    failureRedirect: "/login",
-  }),
-  function (req, res) {}
-);
+router.post("/login", (req, res, next) => {
+  // Check if both username and password are provided
+  if (!req.body.username || !req.body.password) {
+    req.flash("errorMessages", JSON.stringify(["Please provide all fields"]));
+    return res.redirect("/login");
+  }
+
+  passport.authenticate("local", (err, user, info) => {
+    if (err || !user) {
+      // Flash the custom error message for authentication failure
+      req.flash(
+        "errorMessages",
+        JSON.stringify(["Invalid username or password"])
+      );
+      return res.redirect("/login");
+    }
+
+    // Log the user in if authentication was successful
+    req.login(user, (err) => {
+      if (err) return next(err);
+      return res.redirect("/feed");
+    });
+  })(req, res, next);
+});
 
 //messegner routes
 router.get("/messenger", isAuthenticated, async (req, res) => {
@@ -616,12 +635,22 @@ router.post("/chat/start", isAuthenticated, async (req, res) => {
     const { username } = req.body;
     const currentUser = req.user;
 
+    // Prevent users from chatting with themselves
+    if (username === currentUser.username) {
+      req.flash(
+        "errorMessages",
+        JSON.stringify(["You cannot chat with yourself."])
+      );
+      req.flash("formData", JSON.stringify(req.body)); // Retain form data for pre-filling
+      return res.redirect("/messenger"); // Redirect back to the messenger page
+    }
+
     // Find the user by username
     const participant = await userModel.findOne({ username });
     if (!participant) {
       // Flash error message and the form data
-      req.flash("errorMessages", JSON.stringify(["User not found"]));
-      req.flash("formData", JSON.stringify(req.body)); // Flash the form data for pre-filling
+      req.flash("errorMessages", JSON.stringify(["User not found."]));
+      req.flash("formData", JSON.stringify(req.body)); // Retain form data for pre-filling
       return res.redirect("/messenger"); // Redirect back to the messenger page
     }
 

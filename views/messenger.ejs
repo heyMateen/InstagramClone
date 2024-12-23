@@ -8,14 +8,28 @@
   }
 
   .chat-header {
-    padding: 1rem;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    justify-content: space-between; /* Distribute space between elements */
+    align-items: center; /* Vertically align elements */
+    padding: 1rem;
     background-color: #242424;
+    color: white;
     border-bottom: 1px solid #333;
   }
 
+  .left-header {
+    display: flex;
+    align-items: center; /* Vertically align logo and text */
+  }
+
+  .left-header img {
+    margin-right: 10px; /* Add spacing between logo and text */
+  }
+
+  .chat-header a {
+    color: #007bff;
+    text-decoration: none;
+  }
   .chat-list {
     flex-grow: 1;
     overflow-y: auto;
@@ -114,7 +128,15 @@
 
 <div class="chat-container">
   <div class="chat-header">
-    <h1 class="text-lg font-bold">Chats</h1>
+    <div class="left-header">
+      <img
+        src="/images/messenger-logo.png"
+        alt="Messenger Logo"
+        height="40px"
+        width="40px"
+      />
+      <h1 class="text-lg font-bold">Messenger</h1>
+    </div>
     <a
       style="color: #007bff"
       href="/feed"
