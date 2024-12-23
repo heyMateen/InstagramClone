@@ -1,25 +1,26 @@
 const mongoose = require("mongoose");
 
 const chatSchema = new mongoose.Schema({
+  roomId: { type: String, unique: true, required: true }, // Add a unique room identifier
   participants: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "user", // Reference to the user model
+      ref: "user",
       required: true,
     },
-  ], // Array of two users participating in the chat
+  ],
   messages: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "message", // Reference to the message model
+      ref: "message",
     },
-  ], // Array of messages
+  ],
   lastMessage: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "message", // Reference to the latest message
+    ref: "message",
   },
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }, // Tracks the latest activity in the chat
+  updatedAt: { type: Date, default: Date.now },
 });
 
 module.exports = mongoose.model("chat", chatSchema);

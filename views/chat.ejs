@@ -144,19 +144,32 @@
     </a>
   </div>
 
-  <div class="messages" id="messages">
-    <% chat.messages.forEach(message => { %>
-    <div class="message <%= message.sender._id === user._id ? 'self' : '' %>">
-      <img
-        src="/images/uploads/<%= message.sender.picture %>"
-        alt="<%= message.sender.username %>"
-      />
-      <div class="message-content">
-        <p><%= message.content %></p>
+ <div class="messages" id="messages">
+  <% chat.messages.forEach(message => { %> 
+    <% if (message.sender) { %>
+      <% if (message.sender.username === user.username) { %>
+        <div class="message self">
+          <div class="message-content">
+            <p><%= message.content %></p>
+          </div>
+          <img src="/images/uploads/<%= message.sender.picture %>" alt="<%= message.sender.username || 'Unknown' %>" />
+        </div>
+      <% } else { %>
+        <div class="message">
+          <img src="/images/uploads/<%= message.sender.picture %>" alt="<%= message.sender.username || 'Unknown' %>" />
+          <div class="message-content">
+            <p><%= message.content %></p>
+          </div>
+        </div>
+      <% } %>
+    <% } else { %>
+      <!-- Invalid message sender -->
+      <div class="message error">
+        <span>Invalid message sender.</span>
       </div>
-    </div>
-    <% }) %>
-  </div>
+    <% } %>
+  <% }) %>
+</div>
 
   <form class="message-form" id="message-form">
     <input
@@ -174,63 +187,6 @@
 
 <script src="/socket.io/socket.io.js"></script>
 
-<!-- <script>
-  const socket = io(); // Connect to the server
-
-  const messageForm = document.getElementById("message-form");
-  const messageInput = document.getElementById("message-input");
-  const messagesContainer = document.getElementById("messages");
-
-  // Embed the user data into JavaScript
-  const user = {
-    _id: "<%= user._id %>",
-    username: "<%= user.username %>",
-    picture: "<%= user.picture %>",
-  };
-
-  const participant = {
-    _id: "<%= participant._id %>",
-    username: "<%= participant.username %>",
-    picture: "<%= participant.picture %>",
-  };
-
-  // Assuming the roomId is based on the conversation with the participant
-  const roomId =
-    user._id < participant._id
-      ? `${user._id}-${participant._id}`
-      : `${participant._id}-${user._id}`;
-
-  // Join the room for private messaging
-  socket.emit("joinRoom", roomId);
-
-  // Listen for incoming messages from the server
-  socket.on("newMessage", (message) => {
-    const messageElement = document.createElement("div");
-    messageElement.classList.add("message");
-    messageElement.innerHTML = `
-      <img src="/images/uploads/${message.sender.picture}" alt="${message.sender.username}" />
-      <div class="message-content">
-        <p>${message.content}</p>
-      </div>
-    `;
-    messagesContainer.appendChild(messageElement);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight; // Auto-scroll to the latest message
-  });
-
-  // Send message when the form is submitted
-  messageForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const content = messageInput.value;
-    if (content.trim() !== "") {
-      socket.emit("sendMessage", {
-        content: content,
-        sender: user, // Pass the user object here
-        roomId: roomId, // Send the roomId to ensure message goes to the correct participant
-      });
-      messageInput.value = ""; // Clear input after sending
-    }
-  });
-</script> -->
 <script>
   const socket = io(); // Connect to the server
 
@@ -262,10 +218,15 @@
 
   // Listen for incoming messages from the server
   socket.on("newMessage", (message) => {
+    if (!message.sender || !message.content) {
+      console.error("Invalid message received:", message);
+      return;
+    }
+
     const messageElement = document.createElement("div");
     messageElement.classList.add("message");
     if (message.sender._id === user._id) {
-      messageElement.classList.add("self"); // Add 'self' class for the sender's message
+      messageElement.classList.add("self");
       messageElement.innerHTML = `
       <div class="message-content">
         <p>${message.content}</p>
@@ -273,7 +234,7 @@
       <img src="/images/uploads/${message.sender.picture}" alt="${message.sender.username}" />
     `;
     } else {
-        messageElement.innerHTML = `
+      messageElement.innerHTML = `
       <img src="/images/uploads/${message.sender.picture}" alt="${message.sender.username}" />
       <div class="message-content">
         <p>${message.content}</p>
@@ -292,8 +253,9 @@
     if (content.trim() !== "") {
       socket.emit("sendMessage", {
         content: content,
-        sender: user, // Pass the user object here
-        roomId: roomId, // Send the roomId to ensure message goes to the correct participant
+        sender: user, // User object
+        recipient: participant._id, // Recipient ID
+        roomId: roomId,
       });
       messageInput.value = ""; // Clear input after sending
     }

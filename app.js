@@ -11,6 +11,9 @@ const passport = require("passport");
 var indexRouter = require("./routes/index");
 var usersRouter = require("./routes/users");
 
+const Message = require("./models/message"); // Import the Message model
+const Chat = require("./models/chat"); // Import the Chat model
+
 var app = express();
 
 // Create HTTP server and initialize socket.io
@@ -64,39 +67,62 @@ app.use("/", indexRouter);
 app.use("/users", usersRouter);
 
 
+// catch 404 and forward to error handler
+
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
-  // Get user details to assign them to a room
+  // Handle joining a room
   socket.on("joinRoom", (roomId) => {
-    socket.join(roomId); // Join the specific chat room based on roomId
+    socket.join(roomId);
     console.log(`Socket ${socket.id} joined room ${roomId}`);
   });
 
-  // Handle message sending
-  socket.on("sendMessage", (data) => {
-    console.log("Message received:", data.content);
-    console.log("Sender Data:", data.sender);
+  // Handle sending messages
+  socket.on("sendMessage", async (data) => {
+    try {
+      const { content, sender, roomId } = data;
 
-    // Emit the message to the receiver's socket
-    socket.to(data.roomId).emit("newMessage", {
-      sender: {
-        _id: data.sender._id,
-        username: data.sender.username,
-        picture: data.sender.picture,
-      },
-      content: data.content,
-    });
+      let chat = await Chat.findOne({ roomId });
+      if (!chat) {
+        chat = new Chat({
+          roomId, // Assign the concatenated roomId here
+          participants: [sender._id, data.recipient],
+        });
+        await chat.save();
+      }
 
-    // Emit the message to the sender's socket as well
-    socket.emit("newMessage", {
-      sender: {
-        _id: data.sender._id,
-        username: data.sender.username,
-        picture: data.sender.picture,
-      },
-      content: data.content,
-    });
+      // Create a new message
+      const message = new Message({
+        chat: chat._id,
+        sender: sender._id,
+        recipient: data.recipient, // Pass the recipient
+        content,
+      });
+
+      // Save the message to the database
+      await message.save();
+
+      // Add the message to the chat's messages array and update lastMessage
+      chat.messages.push(message._id);
+      chat.lastMessage = message._id;
+      chat.updatedAt = Date.now();
+      await chat.save();
+
+      // Emit the message to the room
+      io.to(roomId).emit("newMessage", {
+        sender: {
+          _id: sender._id,
+          username: sender.username,
+          picture: sender.picture,
+        },
+        content: message.content,
+      });
+
+      console.log("Message saved and emitted:", message.content);
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
   });
 
   // Handle user disconnect
@@ -104,9 +130,6 @@ io.on("connection", (socket) => {
     console.log("A user disconnected:", socket.id);
   });
 });
-
-
-// catch 404 and forward to error handler
 app.use(function (req, res, next) {
   next(createError(404));
 });

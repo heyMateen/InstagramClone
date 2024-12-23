@@ -543,20 +543,30 @@ router.post(
 router.get("/messenger", isAuthenticated, async (req, res) => {
   try {
     // Find all chats for the authenticated user
-    const userChats = await chatModel.find({ participants: req.user._id })
-      .populate("participants")
-      .populate("lastMessage")
+    const userChats = await chatModel
+      .find({ participants: req.user._id })
+      .populate("participants", "username picture") // Populate participants
+      .populate({
+        path: "lastMessage",
+        select: "content sender createdAt",
+        populate: { path: "sender", select: "username picture" }, // Populate sender of the last message
+      })
       .exec();
 
     // Format chat data
     const chats = userChats.map((chat) => {
-      // Exclude the current user to show the other participant
+      // Generate roomId dynamically based on participants
       const participant = chat.participants.find(
         (participant) => participant._id.toString() !== req.user._id.toString()
       );
 
+      const roomId =
+        req.user._id < participant._id
+          ? `${req.user._id}-${participant._id}`
+          : `${participant._id}-${req.user._id}`;
+
       return {
-        id: chat._id,
+        roomId, // Include roomId instead of _id
         participant,
         lastMessage: chat.lastMessage,
       };
@@ -564,27 +574,36 @@ router.get("/messenger", isAuthenticated, async (req, res) => {
 
     res.render("messenger", { user: req.user, chats, footer: true });
   } catch (err) {
-    console.error(err);
+    console.error("Error loading messenger:", err);
     res.status(500).send("Internal Server Error");
   }
 });
-router.get("/chat/:chatId", isAuthenticated, async (req, res) => {
+
+router.get("/chat/:roomId", isAuthenticated, async (req, res) => {
   try {
-    const chatId = req.params.chatId;
+    const roomId = req.params.roomId;
+
+    // Ensure messages and sender fields are populated
     const chat = await chatModel
-      .findById(chatId)
-      .populate("messages.sender", "username picture") // Populate sender in messages
-      .populate("participants", "username picture"); // Populate participants in the chat
+      .findOne({ roomId })
+      .populate({
+        path: "messages",
+        populate: { path: "sender", select: "username picture" },
+      })
+      .populate("participants", "username picture");
 
     if (!chat) {
       return res.status(404).send("Chat not found");
     }
 
-    // Assuming that participants array contains two users
+    // Filter messages with valid sender
+    chat.messages = chat.messages.filter((message) => message.sender);
+
+    // Find the participant who is not the current user
     const participant = chat.participants.find(
       (p) => p._id.toString() !== req.user._id.toString()
     );
-
+    console.log(chat.messages);
     res.render("chat", { footer: true, chat, participant, user: req.user });
   } catch (error) {
     console.error("Error loading chat:", error);
@@ -606,28 +625,33 @@ router.post("/chat/start", isAuthenticated, async (req, res) => {
       return res.redirect("/messenger"); // Redirect back to the messenger page
     }
 
+    // Generate a consistent roomId for the chat
+    const roomId =
+      currentUser._id < participant._id
+        ? `${currentUser._id}-${participant._id}`
+        : `${participant._id}-${currentUser._id}`;
+
     // Check if a chat already exists
     let chat = await chatModel.findOne({
-      participants: { $all: [currentUser._id, participant._id] },
+      roomId, // Check based on roomId
     });
 
     if (!chat) {
       // Create a new chat if one does not exist
       chat = new chatModel({
         participants: [currentUser._id, participant._id],
+        roomId, // Include the roomId in the new chat
       });
       await chat.save();
     }
 
     // Redirect to the newly created or existing chat
-    res.redirect(`/chat/${chat._id}`);
+    res.redirect(`/chat/${chat.roomId}`);
   } catch (error) {
     console.error("Error starting chat:", error);
     res.status(500).send("Internal Server Error");
   }
 });
-
-
 
 router.get("/logout", function (req, res, next) {
   req.logout(function (err) {

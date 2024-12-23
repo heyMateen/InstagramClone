@@ -57,7 +57,6 @@
     color: #888;
   }
 
-  /* Form Section Design */
   .form-section {
     margin-top: 2rem;
     padding: 1rem;
@@ -87,21 +86,21 @@
     border-color: #007bff;
   }
 
- .form-section button {
+  .form-section button {
     width: 100%;
     padding: 0.8rem;
-    background-color: #007bff; /* Blue color */
+    background-color: #007bff;
     color: white;
     border: none;
     border-radius: 5px;
     font-size: 1rem;
     cursor: pointer;
     transition: background-color 0.2s ease;
-}
+  }
 
-.form-section button:hover {
-    background-color: #0056b3; /* Darker blue on hover */
-}
+  .form-section button:hover {
+    background-color: #0056b3;
+  }
 
   .alert-error {
     background-color: #f8d7da;
@@ -116,7 +115,11 @@
 <div class="chat-container">
   <div class="chat-header">
     <h1 class="text-lg font-bold">Chats</h1>
-    <a style="color: #007bff;" href="/feed" class="d-flex align-items-center text-danger text-md">
+    <a
+      style="color: #007bff"
+      href="/feed"
+      class="d-flex align-items-center text-danger text-md"
+    >
       <i class="ri-arrow-left-line mr-2"></i> Back
     </a>
   </div>
@@ -134,7 +137,7 @@
         />
         <button type="submit">Start Chat</button>
         <% if (errorMessages && errorMessages[0]) { %>
-        <div style="color:red; text-align: center;" class="w-full text-red-500 py-2 px-4 rounded-md text-center mt-2">
+        <div class="w-full text-red-500 py-2 px-4 rounded-md text-center mt-2">
           <%= errorMessages[0] %>
         </div>
         <% } %>
@@ -142,12 +145,12 @@
     </div>
   </div>
 
-  <hr class="mt-4 mb-1 w-full" style="border:0.5px solid gray">
+  <hr class="mt-4 mb-1 w-full" style="border: 0.5px solid gray" />
 
   <div class="chat-list">
     <h2 class="text-gray-500 text-lg font-semibold mb-4">Recent Chats</h2>
     <% if (chats.length > 0) { %> <% chats.forEach(chat => { %>
-    <a href="/chat/<%= chat.id %>" class="chat-item">
+    <a href="/chat/<%= chat.roomId %>" class="chat-item">
       <img
         src="/images/uploads/<%= chat.participant.picture %>"
         alt="<%= chat.participant.username %>"
@@ -167,13 +170,13 @@
         <input
           type="text"
           name="username"
-          placeholder="search users..."
+          placeholder="Search users..."
           required
           value="<%= formData ? formData.username : '' %>"
         />
         <button type="submit">Start Chat</button>
         <% if (errorMessages && errorMessages[0]) { %>
-        <div style="color:red; text-align: center;" class="w-full text-red-500 py-2 px-4 rounded-md text-center mt-2">
+        <div class="w-full text-red-500 py-2 px-4 rounded-md text-center mt-2">
           <%= errorMessages[0] %>
         </div>
         <% } %>
