@@ -1,9 +1,10 @@
-var createError = require("http-errors");
-var express = require("express");
-var path = require("path");
-var cookieParser = require("cookie-parser");
-var logger = require("morgan");
-var expressSession = require("express-session");
+const http = require("http");
+const express = require("express");
+const socketIo = require("socket.io");
+const path = require("path");
+const cookieParser = require("cookie-parser");
+const logger = require("morgan");
+const expressSession = require("express-session");
 const flash = require("connect-flash");
 const passport = require("passport");
 
@@ -11,6 +12,10 @@ var indexRouter = require("./routes/index");
 var usersRouter = require("./routes/users");
 
 var app = express();
+
+// Create HTTP server and initialize socket.io
+const server = http.createServer(app);
+const io = socketIo(server);
 
 // view engine setup
 app.set("views", path.join(__dirname, "views"));
@@ -58,6 +63,49 @@ app.use(function (req, res, next) {
 app.use("/", indexRouter);
 app.use("/users", usersRouter);
 
+
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+
+  // Get user details to assign them to a room
+  socket.on("joinRoom", (roomId) => {
+    socket.join(roomId); // Join the specific chat room based on roomId
+    console.log(`Socket ${socket.id} joined room ${roomId}`);
+  });
+
+  // Handle message sending
+  socket.on("sendMessage", (data) => {
+    console.log("Message received:", data.content);
+    console.log("Sender Data:", data.sender);
+
+    // Emit the message to the receiver's socket
+    socket.to(data.roomId).emit("newMessage", {
+      sender: {
+        _id: data.sender._id,
+        username: data.sender.username,
+        picture: data.sender.picture,
+      },
+      content: data.content,
+    });
+
+    // Emit the message to the sender's socket as well
+    socket.emit("newMessage", {
+      sender: {
+        _id: data.sender._id,
+        username: data.sender.username,
+        picture: data.sender.picture,
+      },
+      content: data.content,
+    });
+  });
+
+  // Handle user disconnect
+  socket.on("disconnect", () => {
+    console.log("A user disconnected:", socket.id);
+  });
+});
+
+
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
   next(createError(404));
@@ -72,6 +120,11 @@ app.use(function (err, req, res, next) {
   // Render the error page
   res.status(err.status || 500);
   res.render("error");
+});
+
+// Listen on the port for HTTP and WebSocket connections
+server.listen(8000, () => {
+  console.log("Server is running on port 8000");
 });
 
 module.exports = app;

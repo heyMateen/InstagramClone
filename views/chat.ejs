@@ -1,0 +1,301 @@
+<% include ./partials/header.ejs %>
+<style>
+  .chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .chat-header {
+    padding: 1rem;
+    background-color: #242424;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    /* Distribute items to the left and right */
+    align-items: center;
+    border-bottom: 1px solid #333;
+  }
+
+  .chat-header .participant-info {
+    display: flex;
+    align-items: center;
+  }
+
+  .chat-header .participant-username {
+    margin-left: 8px;
+    /* Small gap between the username and picture */
+    font-size: 1rem;
+    /* Adjust the font size of the username */
+  }
+
+  .chat-header img {
+    height: 30px;
+    /* Adjust the size of the profile picture */
+    width: 30px;
+    /* Ensure it's a square */
+    border-radius: 50%;
+    /* Make the image circular */
+    object-fit: cover;
+    margin-right: 3px;
+  }
+
+  .chat-header .back-btn {
+    display: flex;
+    align-items: center;
+    font-size: 1rem;
+  }
+  .message.self {
+    justify-content: flex-end; /* Align the sender's message to the right */
+  }
+
+  .messages {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    background-color: #181818;
+    color: white;
+  }
+
+  .message {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .message img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 0.8rem;
+  }
+  .message.self img {
+    margin-right: 0; /* Remove image margin for the sender */
+    margin-left: 0.8rem; /* Add left margin to make space on the right side */
+  }
+
+  .message-content {
+    background-color: #242424;
+    padding: 0.8rem;
+    border-radius: 10px;
+    max-width: 60%;
+  }
+  .message.self .message-content {
+    background-color: #007bff; /* Change background color for the sender's message */
+    color: white; /* Text color for the sender's message */
+  }
+  .message.self .message-content p {
+    text-align: right; /* Align text to the right for the sender's message */
+  }
+
+  .message-form {
+    display: flex;
+    padding: 1rem;
+    border-top: 1px solid #333;
+    background-color: #242424;
+    position: relative;
+    z-index: 1;
+  }
+
+  .message-form input {
+    flex-grow: 1;
+    padding: 0.8rem;
+    border: none;
+    border-radius: 5px;
+    margin-right: 1rem;
+    background-color: #181818;
+    color: white;
+  }
+
+  .message-form button {
+    padding: 0.8rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    width: 15%;
+  }
+
+  .chat-container .messages {
+    padding-bottom: 60px;
+    /* Adjust to make room for the message form */
+  }
+</style>
+
+<div class="chat-container">
+  <div class="chat-header">
+    <!-- Participant Info (Image + Username) -->
+    <div class="participant-info">
+      <img
+        class="participant-img"
+        src="/images/uploads/<%= participant.picture %>"
+        alt="<%= participant.username %>"
+      />
+      <p class="participant-username text-sm"><%= participant.username %></p>
+    </div>
+
+    <!-- Back Button -->
+    <a
+      style="color: #007bff"
+      href="/messenger"
+      class="back-btn text-primary text-md"
+    >
+      <i class="ri-arrow-left-line mr-2"></i> Back
+    </a>
+  </div>
+
+  <div class="messages" id="messages">
+    <% chat.messages.forEach(message => { %>
+    <div class="message <%= message.sender._id === user._id ? 'self' : '' %>">
+      <img
+        src="/images/uploads/<%= message.sender.picture %>"
+        alt="<%= message.sender.username %>"
+      />
+      <div class="message-content">
+        <p><%= message.content %></p>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+
+  <form class="message-form" id="message-form">
+    <input
+      type="text"
+      id="message-input"
+      name="content"
+      placeholder="Type a message..."
+      required
+    />
+    <button type="submit">
+      <i style="font-size: 20px" class="ri-send-plane-fill"></i>
+    </button>
+  </form>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<!-- <script>
+  const socket = io(); // Connect to the server
+
+  const messageForm = document.getElementById("message-form");
+  const messageInput = document.getElementById("message-input");
+  const messagesContainer = document.getElementById("messages");
+
+  // Embed the user data into JavaScript
+  const user = {
+    _id: "<%= user._id %>",
+    username: "<%= user.username %>",
+    picture: "<%= user.picture %>",
+  };
+
+  const participant = {
+    _id: "<%= participant._id %>",
+    username: "<%= participant.username %>",
+    picture: "<%= participant.picture %>",
+  };
+
+  // Assuming the roomId is based on the conversation with the participant
+  const roomId =
+    user._id < participant._id
+      ? `${user._id}-${participant._id}`
+      : `${participant._id}-${user._id}`;
+
+  // Join the room for private messaging
+  socket.emit("joinRoom", roomId);
+
+  // Listen for incoming messages from the server
+  socket.on("newMessage", (message) => {
+    const messageElement = document.createElement("div");
+    messageElement.classList.add("message");
+    messageElement.innerHTML = `
+      <img src="/images/uploads/${message.sender.picture}" alt="${message.sender.username}" />
+      <div class="message-content">
+        <p>${message.content}</p>
+      </div>
+    `;
+    messagesContainer.appendChild(messageElement);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight; // Auto-scroll to the latest message
+  });
+
+  // Send message when the form is submitted
+  messageForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const content = messageInput.value;
+    if (content.trim() !== "") {
+      socket.emit("sendMessage", {
+        content: content,
+        sender: user, // Pass the user object here
+        roomId: roomId, // Send the roomId to ensure message goes to the correct participant
+      });
+      messageInput.value = ""; // Clear input after sending
+    }
+  });
+</script> -->
+<script>
+  const socket = io(); // Connect to the server
+
+  const messageForm = document.getElementById("message-form");
+  const messageInput = document.getElementById("message-input");
+  const messagesContainer = document.getElementById("messages");
+
+  // Embed the user data into JavaScript
+  const user = {
+    _id: "<%= user._id %>",
+    username: "<%= user.username %>",
+    picture: "<%= user.picture %>",
+  };
+
+  const participant = {
+    _id: "<%= participant._id %>",
+    username: "<%= participant.username %>",
+    picture: "<%= participant.picture %>",
+  };
+
+  // Assuming the roomId is based on the conversation with the participant
+  const roomId =
+    user._id < participant._id
+      ? `${user._id}-${participant._id}`
+      : `${participant._id}-${user._id}`;
+
+  // Join the room for private messaging
+  socket.emit("joinRoom", roomId);
+
+  // Listen for incoming messages from the server
+  socket.on("newMessage", (message) => {
+    const messageElement = document.createElement("div");
+    messageElement.classList.add("message");
+    if (message.sender._id === user._id) {
+      messageElement.classList.add("self"); // Add 'self' class for the sender's message
+      messageElement.innerHTML = `
+      <div class="message-content">
+        <p>${message.content}</p>
+      </div>
+      <img src="/images/uploads/${message.sender.picture}" alt="${message.sender.username}" />
+    `;
+    } else {
+        messageElement.innerHTML = `
+      <img src="/images/uploads/${message.sender.picture}" alt="${message.sender.username}" />
+      <div class="message-content">
+        <p>${message.content}</p>
+      </div>
+    `;
+    }
+
+    messagesContainer.appendChild(messageElement);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight; // Auto-scroll to the latest message
+  });
+
+  // Send message when the form is submitted
+  messageForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const content = messageInput.value;
+    if (content.trim() !== "") {
+      socket.emit("sendMessage", {
+        content: content,
+        sender: user, // Pass the user object here
+        roomId: roomId, // Send the roomId to ensure message goes to the correct participant
+      });
+      messageInput.value = ""; // Clear input after sending
+    }
+  });
+</script>

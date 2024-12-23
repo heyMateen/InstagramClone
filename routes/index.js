@@ -6,6 +6,8 @@ const userModel = require("./users");
 const postModel = require("./posts");
 const storyModel = require("./story");
 const SearchQuery = require("../models/searchQuery");
+const chatModel = require("../models/chat");
+const messageModel = require("../models/message");
 passport.use(new localStrategy(userModel.authenticate()));
 const upload = require("./multer");
 const utils = require("../utils/utils");
@@ -536,6 +538,96 @@ router.post(
   }),
   function (req, res) {}
 );
+
+//messegner routes
+router.get("/messenger", isAuthenticated, async (req, res) => {
+  try {
+    // Find all chats for the authenticated user
+    const userChats = await chatModel.find({ participants: req.user._id })
+      .populate("participants")
+      .populate("lastMessage")
+      .exec();
+
+    // Format chat data
+    const chats = userChats.map((chat) => {
+      // Exclude the current user to show the other participant
+      const participant = chat.participants.find(
+        (participant) => participant._id.toString() !== req.user._id.toString()
+      );
+
+      return {
+        id: chat._id,
+        participant,
+        lastMessage: chat.lastMessage,
+      };
+    });
+
+    res.render("messenger", { user: req.user, chats, footer: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal Server Error");
+  }
+});
+router.get("/chat/:chatId", isAuthenticated, async (req, res) => {
+  try {
+    const chatId = req.params.chatId;
+    const chat = await chatModel
+      .findById(chatId)
+      .populate("messages.sender", "username picture") // Populate sender in messages
+      .populate("participants", "username picture"); // Populate participants in the chat
+
+    if (!chat) {
+      return res.status(404).send("Chat not found");
+    }
+
+    // Assuming that participants array contains two users
+    const participant = chat.participants.find(
+      (p) => p._id.toString() !== req.user._id.toString()
+    );
+
+    res.render("chat", { footer: true, chat, participant, user: req.user });
+  } catch (error) {
+    console.error("Error loading chat:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+router.post("/chat/start", isAuthenticated, async (req, res) => {
+  try {
+    const { username } = req.body;
+    const currentUser = req.user;
+
+    // Find the user by username
+    const participant = await userModel.findOne({ username });
+    if (!participant) {
+      // Flash error message and the form data
+      req.flash("errorMessages", JSON.stringify(["User not found"]));
+      req.flash("formData", JSON.stringify(req.body)); // Flash the form data for pre-filling
+      return res.redirect("/messenger"); // Redirect back to the messenger page
+    }
+
+    // Check if a chat already exists
+    let chat = await chatModel.findOne({
+      participants: { $all: [currentUser._id, participant._id] },
+    });
+
+    if (!chat) {
+      // Create a new chat if one does not exist
+      chat = new chatModel({
+        participants: [currentUser._id, participant._id],
+      });
+      await chat.save();
+    }
+
+    // Redirect to the newly created or existing chat
+    res.redirect(`/chat/${chat._id}`);
+  } catch (error) {
+    console.error("Error starting chat:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+
 
 router.get("/logout", function (req, res, next) {
   req.logout(function (err) {
