@@ -1,15 +1,98 @@
 <% include ./partials/header.ejs %>
-  <div class="w-full min-h-screen bg-zinc-900 text-white py-5 flex flex-col items-center justify-center">
-    <div class="flex flex-col items-center gap-5 px-4">
-      <img class="w-1/2" src="/images/logo.png" alt="">
-      <form class="w-full" action="/register" method="post">
-        <input class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900" type="text" placeholder="username" name="username">
-        <input class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900" type="email" placeholder="email" name="email">
-        <input class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900" type="text" placeholder="name" name="name">
-        <input class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900" type="password" placeholder="password" name="password">
-        <input class="w-full bg-blue-500 px-3 py-3 rounded-md mt-2" type="submit" value="Make New Account">
-      </form>
-      <span>Already have an account ? <a href="/login" class="text-blue-500">Log In</a></span>
-    </div>
+<div
+  class="w-full min-h-screen bg-zinc-900 text-white py-5 flex flex-col items-center justify-center"
+>
+  <div class="flex flex-col items-center gap-5 px-4">
+    <img class="w-1/2" src="/images/logo.png" alt="" />
+    <form class="w-full" action="/register" method="post">
+      <!-- Username Field -->
+      <div class="mb-4">
+        <input
+          class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900"
+          autocomplete="off"
+          type="text"
+          placeholder="username"
+          name="username"
+          value="<%= formData && formData.username ? formData.username : '' %>"
+        />
+        <% if (errorMessages && errorMessages.username) { %>
+        <p class="text-red-500 text-sm mt-2 mx-1">
+          <%= errorMessages.username %>
+        </p>
+        <% } %>
+      </div>
+
+      <!-- Email Field -->
+      <div class="mb-4">
+        <input
+          class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900"
+          type="email"
+          placeholder="email"
+          name="email"
+          value="<%= formData && formData.email ? formData.email : '' %>"
+        />
+        <% if (errorMessages && errorMessages.email) { %>
+        <p class="text-red-500 text-sm mt-2 mx-1"><%= errorMessages.email %></p>
+        <% } %>
+      </div>
+
+      <!-- Name Field -->
+      <div class="mb-4">
+        <input
+          class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900"
+          type="text"
+          placeholder="name"
+          name="name"
+          value="<%= formData && formData.name ? formData.name : '' %>"
+        />
+        <% if (errorMessages && errorMessages.name) { %>
+        <p class="text-red-500 text-sm mt-2 mx-1"><%= errorMessages.name %></p>
+        <% } %>
+      </div>
+
+      <!-- Password Field -->
+      <div class="mb-4">
+        <input
+          class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900"
+          type="password"
+          placeholder="password"
+          name="password"
+          value="<%= formData && formData.password ? formData.password : '' %>"
+        />
+        <% if (errorMessages && errorMessages.password) { %>
+        <p class="text-red-500 text-sm mt-2 mx-1">
+          <%= errorMessages.password %>
+        </p>
+        <% } %>
+      </div>
+
+      <!-- Confirm Password Field -->
+      <div class="mb-4">
+        <input
+          class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900"
+          type="password"
+          placeholder="confirm password"
+          name="confirmPassword"
+          value="<%= formData && formData.confirmPassword ? formData.confirmPassword : '' %>"
+        />
+        <% if (errorMessages && errorMessages.confirmPassword) { %>
+        <p class="text-red-500 text-sm mt-2 mx-1">
+          <%= errorMessages.confirmPassword %>
+        </p>
+        <% } %>
+      </div>
+
+      <!-- Submit Button -->
+      <input
+        class="w-full bg-blue-500 px-3 py-3 rounded-md mt-2"
+        type="submit"
+        value="Signup"
+      />
+    </form>
+    <span
+      >Already have an account?
+      <a href="/login" class="text-blue-500">Log In</a></span
+    >
   </div>
+</div>
 <% include ./partials/footer.ejs %>

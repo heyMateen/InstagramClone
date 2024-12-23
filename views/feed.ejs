@@ -1,4 +1,19 @@
 <% include ./partials/header.ejs %>
+<style>
+  #comments-modal {
+    height: 70%;
+    transform: translateY(100%);
+    transition: transform 0.3s ease-in-out;
+  }
+
+  #comments-modal.open {
+    transform: translateY(0);
+  }
+
+  .hidden {
+    display: none;
+  }
+</style>
 <div class="w-full min-h-screen bg-zinc-900 text-white py-5">
   <div class="w-full px-4 flex items-center justify-between">
     <img class="w-1/4" src="/images/logo.png" alt="" />
@@ -8,26 +23,23 @@
     </div>
   </div>
   <div class="story px-3 flex gap-3 overflow-auto mt-5">
-    <% if(myStories){ 
-      myStories.forEach(function(story){ %>
-        <a href="/story/<%= story.id %>">
-          <div class="circle flex-shrink-0">
-            <div
-              class="gradient w-[18vw] h-[18vw] bg-sky-100 rounded-full bg-gradient-to-r from-purple-700 to-orange-500 flex items-center justify-center"
-            >
-              <div class="inner w-[92%] h-[92%] rounded-full overflow-hidden">
-                <img
-                  class="w-full h-full object-cover"
-                  src="/images/uploads/<%= story.story%>"
-                  alt=""
-                />
-              </div>
-            </div>
+    <% if(myStories){ myStories.forEach(function(story){ %>
+    <a href="/story/<%= story.id %>">
+      <div class="circle flex-shrink-0">
+        <div
+          class="gradient w-[18vw] h-[18vw] bg-sky-100 rounded-full bg-gradient-to-r from-purple-700 to-orange-500 flex items-center justify-center"
+        >
+          <div class="inner w-[92%] h-[92%] rounded-full overflow-hidden">
+            <img
+              class="w-full h-full object-cover"
+              src="/images/uploads/<%= story.story%>"
+              alt=""
+            />
           </div>
-        </a>
-    <% })
-    } %> 
-    <% stories.forEach(function(story){ %>
+        </div>
+      </div>
+    </a>
+    <% }) } %> <% stories.forEach(function(story){ %>
     <a href="/story/<%= story.id %>">
       <div class="circle flex-shrink-0">
         <div
@@ -80,7 +92,9 @@
           <% } else { %>
           <i class="heart ri-heart-3-fill text-red-500"></i>
           <% } %>
-          <i class="ri-chat-3-line"></i>
+          <div class="post" data-postid="<%= post.id %>">
+            <i class="ri-chat-3-line"></i>
+          </div>
           <i class="ri-share-circle-line"></i>
         </div>
         <% if(user.saved.indexOf(post.id)===-1){ %>
@@ -101,6 +115,45 @@
       </h2>
     </div>
     <% }) %>
+  </div>
+</div>
+<div
+  id="comments-modal"
+  class="hidden fixed bottom-0 left-0 w-full bg-zinc-900 text-white z-50 flex flex-col rounded-t-lg"
+>
+  <!-- Close Button -->
+  <div
+    class="flex justify-between items-center px-4 py-2 border-b border-zinc-700"
+  >
+    <h4 class="text-lg font-bold">Comments</h4>
+    <button id="close-comments-modal" class="text-xl">&times;</button>
+  </div>
+
+  <!-- Comments Section -->
+  <div id="comments-container" class="flex-grow overflow-y-auto p-4">
+    <!-- Comments will be loaded dynamically -->
+  </div>
+
+  <!-- Add Comment Form -->
+  <form id="add-comment-form" class="p-4 border-t border-zinc-700 flex">
+    <input
+      id="comment-input"
+      type="text"
+      name="comment"
+      class="flex-grow p-2 rounded bg-zinc-800 text-white border border-zinc-700"
+      placeholder="Add a comment..."
+      required
+    />
+    <button type="submit" class="ml-2 bg-blue-500 px-4 py-2 rounded text-white">
+      Post
+    </button>
+  </form>
+  <!-- Error Banner -->
+  <div
+    id="error-banner"
+    class="hidden p-2 bg-red-200 text-red-800 text-center rounded-b-lg"
+  >
+    <!-- Error message will be inserted dynamically -->
   </div>
 </div>
 
@@ -213,6 +266,128 @@
             dets.target.classList.add("ri-bookmark-fill", "text-zinc-100");
           }
         });
+    }
+  });
+</script>
+<script>
+  const commentIcons = document.querySelectorAll(".ri-chat-3-line");
+  const commentsModal = document.getElementById("comments-modal");
+  const closeModalButton = document.getElementById("close-comments-modal");
+  const commentsContainer = document.getElementById("comments-container");
+  const commentInput = document.getElementById("comment-input");
+  const addCommentForm = document.getElementById("add-comment-form");
+  const errorBanner = document.getElementById("error-banner");
+
+  // Open modal and load comments
+  commentIcons.forEach((icon) => {
+    icon.addEventListener("click", async (e) => {
+      // Safely find the closest parent element with `data-postid`
+      const postElement = e.target.closest("[data-postid]");
+
+      if (!postElement) {
+        console.error("Post ID not found.");
+        return; // Stop execution if `data-postid` is not found
+      }
+
+      const postId = postElement.dataset.postid;
+
+      try {
+        // Fetch comments for the post
+        const response = await fetch(`/post/${postId}/comments`);
+        const comments = await response.json();
+
+        // Populate comments in the modal
+        commentsContainer.innerHTML = comments
+          .map(
+            (comment) => `
+      <div class="comment-item flex items-start mb-4">
+        <img
+          src="/images/uploads/${comment.user.picture}"
+          alt="User"
+          class="w-8 h-8 rounded-full mr-3"
+        />
+        <div class="w-full">
+          <div class="flex justify-between items-center">
+            <span class="font-bold">${comment.user.username}</span>
+            <span class="text-sm text-gray-400">${formatRelativeTime(
+              new Date(comment.date)
+            )}</span>
+          </div>
+          <p>${comment.text}</p>
+        </div>
+      </div>
+    `
+          )
+          .join("");
+
+        // Show the modal
+        commentsModal.classList.add("open");
+        commentsModal.classList.remove("hidden");
+
+        // Store post ID for adding comments
+        addCommentForm.dataset.postid = postId;
+      } catch (error) {
+        console.error("Error fetching comments:", error);
+      }
+    });
+  });
+
+  // Close modal
+  closeModalButton.addEventListener("click", () => {
+    commentsModal.classList.remove("open");
+    setTimeout(() => commentsModal.classList.add("hidden"), 300); // Delay to match animation
+  });
+
+  // Add comment
+  addCommentForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const postId = e.target.dataset.postid;
+    const commentText = commentInput.value;
+    if (!commentText.trim()) return;
+
+    const response = await fetch(`/comment/${postId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text: commentText,
+      }),
+    });
+
+    if (response.ok) {
+      const newComment = await response.json();
+
+      // Append new comment to the modal
+      commentsContainer.innerHTML += `
+        <div class="comment-item flex items-start mb-4">
+        <img
+          src="/images/uploads/${newComment.user.picture}"
+          alt="User"
+          class="w-8 h-8 rounded-full mr-3"
+        />
+        <div class="w-full">
+          <div class="flex justify-between items-center">
+            <span class="font-bold">${newComment.user.username}</span>
+            <span class="text-sm text-gray-400">${formatRelativeTime(
+              new Date(newComment.date)
+            )}</span>
+          </div>
+          <p>${newComment.text}</p>
+        </div>
+      </div>
+      `;
+
+      // Clear input field
+      commentInput.value = "";
+    } else {
+      // Extract and display error message
+      const error = await response.json();
+      errorBanner.textContent = error.error || "An unexpected error occurred.";
+      errorBanner.classList.remove("hidden");
+
+      setTimeout(() => errorBanner.classList.add("hidden"), 2000);
     }
   });
 </script>

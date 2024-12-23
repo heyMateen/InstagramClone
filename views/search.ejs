@@ -10,6 +10,41 @@
       placeholder="search username"
     />
   </div>
+
+  <!-- Display previous search queries -->
+  <div class="previous-searches mt-5">
+    <% if (searchQueries.length > 0) { %>
+<h2 class="text-sm text-gray-500">Previous Searches</h2>
+    <div class="search-history">
+      <% searchQueries.forEach((query) => { %>
+      <a
+        href="/profile/<%= query.searchedUser.username %>"
+        class="block text-white mt-3"
+      >
+        <div class="flex items-center gap-2">
+          <div
+            class="image w-[11vw] h-[11vw] rounded-full bg-sky-100 overflow-hidden"
+          >
+            <img
+              src="/images/uploads/<%= query.searchedUser.picture %>"
+              alt="<%= query.searchedUser.username %>"
+            />
+          </div>
+          <div class="text">
+            <h3><%= query.searchedUser.username %></h3>
+            <h4 class="text-xs opacity-30 leading-none">
+              <%= query.searchedUser.name %>
+            </h4>
+          </div>
+        </div>
+      </a>
+      <% }) %>
+    </div>
+    <% } else { %>
+    <p class="text-white">No previous searches found.</p>
+    <% } %>
+  </div>
+
   <div class="users"></div>
 </div>
 
@@ -24,22 +59,54 @@
           let clutter = "";
 
           result.forEach((item) => {
-            clutter += `<a href="/profile/${item.username}" class="outline-none">
-            <div class="text-white flex items-center gap-2 mt-5">
-                <div class="image w-[11vw] h-[11vw] rounded-full bg-sky-100 overflow-hidden">
-                    <img src="/images/uploads/${item.picture}" alt="">
-                    </div>
-                <div class="text">
-                    <h3>${item.username}</h3>
-                    <h4 class="text-xs opacity-30 leading-none">${item.name}</h4>
-                </div>
-            </div>            
-        </a>`;
+            clutter += `<a href="/profile/${item.username}" class="outline-none" data-username="${item.username}" data-name="${item.name}" data-picture="${item.picture}">
+                          <div class="text-white flex items-center gap-2 mt-5">
+                            <div class="image w-[11vw] h-[11vw] rounded-full bg-sky-100 overflow-hidden">
+                              <img src="/images/uploads/${item.picture}" alt="">
+                            </div>
+                            <div class="text">
+                              <h3>${item.username}</h3>
+                              <h4 class="text-xs opacity-30 leading-none">${item.name}</h4>
+                            </div>
+                          </div>
+                        </a>`;
           });
 
           document.querySelector(".users").innerHTML = clutter;
+
+          // Add event listeners to each search result
+          const searchResults = document.querySelectorAll(".users a");
+          searchResults.forEach((result) => {
+            result.addEventListener("click", function (e) {
+              e.preventDefault(); // Prevent the default link behavior (navigating to profile)
+
+              // Send POST request to store the search query
+              fetch("/store-search", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  query: inp.value, // The search query
+                  username: result.getAttribute("data-username"), // Username of the clicked item
+                }),
+              })
+                .then((response) => response.json())
+                .then((data) => {
+                  console.log("Search query stored:", data);
+                  // After storing the search query, you can navigate to the profile page
+                  window.location.href = `/profile/${result.getAttribute(
+                    "data-username"
+                  )}`;
+                })
+                .catch((error) =>
+                  console.error("Error storing search query:", error)
+                );
+            });
+          });
         });
     }
   });
 </script>
+
 <% include ./partials/footer.ejs %>

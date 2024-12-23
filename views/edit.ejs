@@ -7,20 +7,35 @@
     <h2 class="leading-none text-sm">Edit Profile</h2>
     <a class="text-sm" href="/feed"><i class="ri-home-line"></i> home</a>
   </div>
-  <div class="flex flex-col items-center gap-2 mt-20">
-    <div class="image w-20 h-20 bg-sky-100 rounded-full overflow-hidden">
-      <img
-        class="w-full h-full object-cover"
-        id="profile_image"
-        src="/images/uploads/<%= user.picture %>"
-        alt="<%= user.name %>"
-      />
-    </div>
-    <button id="editbtn" class="text-blue-500 capitalize">edit picture</button>
-  </div>
+
   <div class="gap-5 px-4 mt-10">
-    <h3 class="text-lg leading-none">Edit Account Details</h3>
+    <!-- Edit Profile Picture Section -->
+    <div class="flex flex-col items-center gap-2 mt-20">
+      <div class="image w-20 h-20 bg-sky-100 rounded-full overflow-hidden">
+        <img
+          class="w-full h-full object-cover"
+          id="profile_image"
+          src="/images/uploads/<%= user.picture %>"
+          alt="<%= user.name %>"
+        />
+      </div>
+      <button id="editbtn" class="text-blue-500 capitalize">
+        edit picture
+      </button>
+    </div>
+
+    <h3 class="text-md leading-none mt-6">Account Details</h3>
+       <!-- Success Message Banner -->
+    <% if (successMessages && successMessages.length > 0) { %>
+    <div
+      class="w-full bg-green-500 text-white py-2 px-4 rounded-md text-center mt-4"
+    >
+      <%= successMessages %>
+    </div>
+    <% } %>
     <hr class="opacity-30 my-3" />
+
+    <!-- Form for Editing Profile -->
     <form
       class="w-full"
       action="/update"
@@ -33,33 +48,59 @@
         id="file"
         style="opacity: 0; position: absolute; z-index: -1"
       />
-      <input
-        class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900"
-        type="text"
-        placeholder="username"
-        name="username"
-        value="<%= user.username %>"
-      />
-      <input
-        class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900"
-        type="text"
-        placeholder="name"
-        name="name"
-        value="<%= user.name %>"
-      />
-      <textarea
-        class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900 resize-none"
-        placeholder="Bio"
-        name="bio"
-      >
+
+      <!-- Username Field -->
+      <div class="mb-4">
+        <input
+          class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900"
+          type="text"
+          placeholder="username"
+          name="username"
+          value="<%= user.username %>"
+        />
+        <% if (errorMessages && errorMessages.username) { %>
+        <div class="text-red-500 text-sm mt-2 mt-2 mx-1">
+          <%= errorMessages.username %>
+        </div>
+        <% } %>
+      </div>
+
+      <!-- Name Field -->
+      <div class="mb-4">
+        <input
+          class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900"
+          type="text"
+          placeholder="name"
+          name="name"
+          value="<%= user.name %>"
+        />
+        <% if (errorMessages && errorMessages.name) { %>
+        <div class="text-red-500 text-sm mt-2 mx-1"><%= errorMessages.name %></div>
+        <% } %>
+      </div>
+
+      <!-- Bio Field -->
+      <div class="mb-4">
+        <textarea
+          class="px-3 mt-2 py-2 border-2 border-zinc-800 rounded-md block w-full bg-zinc-900 resize-none"
+          placeholder="Bio"
+          name="bio"
+        >
 <%= user.bio %></textarea
-      >
+        >
+        <% if (errorMessages && errorMessages.bio) { %>
+        <div class="text-red-500 text-sm mt-2 mt-2 mx-1"><%= errorMessages.bio %></div>
+        <% } %>
+      </div>
+
+      <!-- Submit Button -->
       <input
         class="w-full bg-blue-500 px-3 py-3 rounded-md mt-2"
         type="submit"
         value="Update"
       />
     </form>
+ 
   </div>
 </div>
 
