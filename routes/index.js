@@ -8,6 +8,7 @@ const storyModel = require("./story");
 const SearchQuery = require("../models/searchQuery");
 const chatModel = require("../models/chat");
 const messageModel = require("../models/message");
+const notificationModel = require("../models/notification");
 passport.use(new localStrategy(userModel.authenticate()));
 const upload = require("./multer");
 const utils = require("../utils/utils");
@@ -26,15 +27,50 @@ router.get("/login", isGuest, function (req, res) {
 });
 
 router.get("/like/:postid", isAuthenticated, async function (req, res) {
-  const post = await postModel.findOne({ _id: req.params.postid });
-  const user = await userModel.findOne({ username: req.session.passport.user });
-  if (post.like.indexOf(user._id) === -1) {
-    post.like.push(user._id);
-  } else {
-    post.like.splice(post.like.indexOf(user._id), 1);
+  try {
+    const post = await postModel
+      .findOne({ _id: req.params.postid })
+      .populate("user", "_id username"); // Ensure `user` field references the author of the post
+
+    const user = await userModel.findOne({
+      username: req.session.passport.user,
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    let liked = false;
+
+    // Toggle like
+    if (post.like.indexOf(user._id) === -1) {
+      post.like.push(user._id);
+      liked = true;
+    } else {
+      post.like.splice(post.like.indexOf(user._id), 1);
+      liked = false;
+    }
+
+    await post.save();
+
+    if (liked && String(post.user._id) !== String(user._id)) {
+      const notification = new notificationModel({
+        recipient: post.user._id, // The user who owns the post
+        sender: user._id, // The user who liked the post
+        type: "like",
+        post: post._id, // Reference to the post
+        isRead: false,
+        content: `${user.username} liked your post`,
+      });
+
+      await notification.save();
+    }
+
+    res.json(post);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "An error occurred while liking the post" });
   }
-  await post.save();
-  res.json(post);
 });
 
 router.get("/feed", isAuthenticated, async function (req, res) {
@@ -140,27 +176,51 @@ router.get("/profile/:user", isAuthenticated, async function (req, res) {
 });
 
 router.get("/follow/:userid", isAuthenticated, async function (req, res) {
-  let followKarneWaala = await userModel.findOne({
-    username: req.session.passport.user,
-  });
+  try {
+    const follower = await userModel.findOne({
+      username: req.session.passport.user,
+    });
 
-  let followHoneWaala = await userModel.findOne({ _id: req.params.userid });
+    const currentUser = await userModel.findOne({ _id: req.params.userid });
 
-  if (followKarneWaala.following.indexOf(followHoneWaala._id) !== -1) {
-    let index = followKarneWaala.following.indexOf(followHoneWaala._id);
-    followKarneWaala.following.splice(index, 1);
+    if (!follower || !currentUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
-    let index2 = followHoneWaala.followers.indexOf(followKarneWaala._id);
-    followHoneWaala.followers.splice(index2, 1);
-  } else {
-    followHoneWaala.followers.push(followKarneWaala._id);
-    followKarneWaala.following.push(followHoneWaala._id);
+    if (follower.following.includes(currentUser._id)) {
+      // Unfollow logic
+      const followingIndex = follower.following.indexOf(currentUser._id);
+      follower.following.splice(followingIndex, 1);
+
+      const followerIndex = currentUser.followers.indexOf(follower._id);
+      currentUser.followers.splice(followerIndex, 1);
+    } else {
+      // Follow logic
+      currentUser.followers.push(follower._id);
+      follower.following.push(currentUser._id);
+
+      // Create a notification for the user being followed
+      const notification = new notificationModel({
+        recipient: currentUser._id, // User being followed
+        sender: follower._id, // User who initiated the follow
+        type: "follow",
+        isRead: false,
+        content: `${follower.username} started following you`,
+      });
+
+      await notification.save();
+    }
+
+    await currentUser.save();
+    await follower.save();
+
+    res.redirect("back");
+  } catch (error) {
+    console.error("Error in follow route:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while processing follow request" });
   }
-
-  await followHoneWaala.save();
-  await followKarneWaala.save();
-
-  res.redirect("back");
 });
 
 router.get("/search", isAuthenticated, async function (req, res) {
@@ -208,16 +268,50 @@ router.post("/store-search", isAuthenticated, async function (req, res) {
 });
 
 router.get("/save/:postid", isAuthenticated, async function (req, res) {
-  let user = await userModel.findOne({ username: req.session.passport.user });
+  try {
+    const user = await userModel.findOne({
+      username: req.session.passport.user,
+    });
+    const post = await postModel
+      .findOne({ _id: req.params.postid })
+      .populate("user", "_id username");
 
-  if (user.saved.indexOf(req.params.postid) === -1) {
-    user.saved.push(req.params.postid);
-  } else {
-    var index = user.saved.indexOf(req.params.postid);
-    user.saved.splice(index, 1);
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    let saved = false;
+
+    // Toggle save
+    if (user.saved.indexOf(req.params.postid) === -1) {
+      user.saved.push(req.params.postid);
+      saved = true;
+    } else {
+      const index = user.saved.indexOf(req.params.postid);
+      user.saved.splice(index, 1);
+    }
+
+    await user.save();
+
+    // Store a notification only if the post is saved (not unsaved)
+    if (saved && String(post.user._id) !== String(user._id)) {
+      const notification = new notificationModel({
+        recipient: post.user._id, // The author of the post
+        sender: user._id, // The user who saved the post
+        type: "save",
+        post: post._id, // Reference to the post
+        isRead: false,
+        content: `${user.username} saved your post`,
+      });
+
+      await notification.save();
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error("Error in save route:", error);
+    res.status(500).json({ error: "An error occurred while saving the post" });
   }
-  await user.save();
-  res.json(user);
 });
 
 router.post("/saved-posts", isAuthenticated, async (req, res) => {
@@ -412,7 +506,10 @@ router.get("/post/:id/comments", async (req, res) => {
   }
 });
 // Add Comment Endpoint
-router.post("/comment/:id", async (req, res) => {
+router.post("/comment/:id", isAuthenticated, async (req, res) => {
+  const user = await userModel.findOne({
+    username: req.session.passport.user,
+  });
   try {
     // Validate request body
     if (!req.body.text) {
@@ -420,7 +517,9 @@ router.post("/comment/:id", async (req, res) => {
     }
 
     // Find the post by ID
-    const post = await postModel.findById(req.params.id);
+    const post = await postModel
+      .findById(req.params.id)
+      .populate("user", "_id username");
     if (!post) {
       return res.status(404).json({ error: "Post not found" });
     }
@@ -435,10 +534,25 @@ router.post("/comment/:id", async (req, res) => {
 
     // Send back the newly added comment
     const newComment = post.comments[post.comments.length - 1];
+
+    // Create a notification only if the commenter is not the post owner
+    if (String(post.user._id) !== String(req.user._id)) {
+      const notification = new notificationModel({
+        recipient: post.user._id, // The post owner
+        sender: req.user._id, // The commenter
+        type: "comment", // Notification type
+        post: post._id, // The commented post
+        isRead: false,
+        content: `${user.username} commented on your post : ${req.body.text}`, // The comment content
+        createdAt: new Date(),
+      });
+
+      await notification.save();
+    }
+
     res.json(newComment);
   } catch (error) {
-    // Log the error (optional) and respond with a 500 status
-    console.error(error);
+    console.error("Error in comment route:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -681,6 +795,43 @@ router.post("/chat/start", isAuthenticated, async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
+router.get("/notifications", isAuthenticated, async function (req, res, next) {
+  try {
+    console.log("User ID:", req.user._id); // Log user ID to make sure it exists
+
+    // Fetch notifications for the logged-in user
+    const notifications = await notificationModel
+      .find({ recipient: req.user._id })
+      .populate("sender", "username picture")
+      .sort({ createdAt: -1 });
+
+    // If there are no notifications, just render the page with an empty list
+    console.log("Notifications:", notifications); // Log notifications
+
+    // Populate post only if the notification type is related to a post (like, comment, or save)
+    for (let notification of notifications) {
+      if (
+        notification.type === "like" ||
+        notification.type === "comment" ||
+        notification.type === "save"
+      ) {
+        // Use populate without execPopulate, directly populating the post field
+        await notification.populate("post", "title");
+      }
+    }
+
+    // Render the notifications view with the notifications data (even if empty)
+    res.render("notification", { notifications, footer: true, user: req.user });
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
+    res.status(500).json({
+      error: "An error occurred while fetching notifications",
+      details: error.message || error,
+    });
+  }
+});
+
+
 
 router.get("/logout", function (req, res, next) {
   req.logout(function (err) {

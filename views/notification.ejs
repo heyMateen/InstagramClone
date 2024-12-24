@@ -1,0 +1,131 @@
+<% include ./partials/header.ejs %>
+<style>
+  .notifications-container {
+    width: 100%;
+    height: 100vh;
+    background-color: #181818;
+    color: white;
+  }
+
+  .notifications-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background-color: #242424;
+    color: white;
+    border-bottom: 1px solid #333;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+  }
+
+  .header-left img {
+    margin-right: 10px;
+  }
+
+  .notifications-header a {
+    color: #007bff;
+    text-decoration: none;
+  }
+
+  .notifications-list {
+    padding: 1rem;
+    overflow-y: auto;
+    height: calc(100vh - 70px);
+  }
+
+  .notification-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #333;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .notification-item:hover {
+    background-color: #2b2b2b;
+  }
+
+  .notification-item img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    margin-right: 1rem;
+  }
+
+  .notification-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .notification-title {
+    font-weight: bold;
+  }
+
+  .notification-message {
+    font-size: 0.9rem;
+    color: #888;
+  }
+
+  .empty-notifications {
+    text-align: center;
+    margin-top: 2rem;
+    color: #888;
+  }
+</style>
+
+<div class="notifications-container">
+  <div class="notifications-header">
+    <div class="header-left">
+      <img
+        src="/images/logo-image.png"
+        alt="App Logo"
+        height="40px"
+        width="40px"
+      />
+      <h1 class="text-lg font-bold">Notifications</h1>
+    </div>
+    <a href="/feed" class="d-flex align-items-center text-danger text-md">
+      <i class="ri-arrow-left-line mr-2"></i> Back
+    </a>
+  </div>
+
+  <div class="notifications-list">
+    <% if (notifications && notifications.length > 0) { %> 
+      <% notifications.forEach(notification => { %>
+        <div class="notification-item">
+          <img
+            src="/images/uploads/<%= notification.sender.picture %>"
+            alt="<%= notification.sender.username %>"
+          />
+          <div class="notification-content">
+            <span class="notification-title">
+              <%= notification.sender.username %>
+            </span>
+            <span class="notification-message">
+              <% if (notification.type === "like") { %>
+                liked your post.
+              <% } else if (notification.type === "comment") { %>
+                commented: "<%= notification.content %>" on your post.
+              <% } else if (notification.type === "follow") { %>
+                started following you.
+              <% } else if (notification.type === "save") { %>
+                saved your post.
+              <% } %>
+            </span>
+          </div>
+        </div>
+      <% }) %> 
+    <% } else { %>
+      <div class="empty-notifications">
+        <p>No notifications yet!</p>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<% include ./partials/footer.ejs %>
